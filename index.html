@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - Portal Corporativo de Auditoria</title>
+    <!-- Tailwind CSS para estilização rápida e moderna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca jsPDF para exportação de PDF diretamente no navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-slate-100 font-sans antialiased">
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-slate-200">
+            <div class="text-center mb-6">
+                <span class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Módulo de Automação Web</span>
+                <h1 class="text-2xl font-bold text-slate-800 mt-2">FinBot Portal</h1>
+                <p class="text-sm text-slate-500">Entre com suas credenciais para auditar as faturas</p>
+            </div>
+            <form id="login-form" onsubmit="realizarLogin(event)" class="space-y-4">
+                <div>
+                    <label for="usuario" class="block text-sm font-medium text-slate-700 mb-1">E-mail Corporativo</label>
+                    <input type="text" id="usuario" required placeholder="ex: analista@empresa.com" 
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="senha" class="block text-sm font-medium text-slate-700 mb-1">Senha de Acesso</label>
+                    <input type="password" id="senha" required placeholder="••••••••" 
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <button type="submit" id="btn-login"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition duration-200 shadow-md">
+                    Acessar Sistema
+                </button>
+            </form>
+            <p class="text-xs text-center text-slate-400 mt-4">💡 Dica para a Aula: Qualquer usuário e senha serão aceitos pelo sistema.</p>
+        </div>
+    </div>
+
+    <!-- PAINEL PRINCIPAL (DASHBOARD) - Inicialmente Oculto -->
+    <div id="dashboard-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-indigo-900 text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <span class="bg-indigo-800 text-indigo-200 text-sm font-bold px-3 py-1 rounded">FinBot v2.0</span>
+                    <h2 class="text-lg font-semibold">Painel de Auditoria e Reembolsos</h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="user-display" class="text-sm text-indigo-200"></span>
+                    <button onclick="realizarLogout()" class="bg-indigo-800 hover:bg-indigo-700 text-xs px-3 py-1.5 rounded transition">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full space-y-6">
+            
+            <!-- Barra de Ferramentas / Simulações do Slide 5 (Modais, Alertas e Elementos Assíncronos) -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="w-full md:w-1/3">
+                    <label for="categoria-despesa" class="block text-sm font-medium text-slate-700 mb-1">Filtrar por Categoria (Select)</label>
+                    <select id="categoria-despesa" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="TODAS">Todas as Categorias</option>
+                        <option value="VIAGEM">Viagem e Passagens</option>
+                        <option value="ALIM">Alimentação e Refeição</option>
+                        <option value="HOSP">Hospedagem</option>
+                        <option value="TEC">Tecnologia e Softwares</option>
+                    </select>
+                </div>
+                
+                <!-- Botões para testar Alertas Nativos e Modais (Slide 5.2) -->
+                <div class="flex flex-wrap gap-2">
+                    <button id="btn-alerta-nativo" onclick="dispararAlertaNativo()" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition shadow-sm">
+                        ⚠️ Disparar Alerta
+                    </button>
+                    <button id="btn-abrir-modal" onclick="abrirModalCustomizado()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition shadow-sm">
+                        💬 Abrir Modal HTML
+                    </button>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button id="btn-csv" onclick="baixarCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-2">
+                        📥 Baixar CSV
+                    </button>
+                    <button id="btn-pdf" onclick="gerarPDF()" class="bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-2">
+                        📄 Gerar Relatório PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- PAINEL ASSÍNCRONO (Slide 5.3 - wait_for_selector) -->
+            <!-- Inicialmente oculto, aparece após 3 segundos simulando uma requisição AJAX -->
+            <div id="alerta-sucesso-reembolso" class="hidden bg-emerald-50 border border-emerald-200 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-emerald-600 text-xl">✅</span>
+                    <div>
+                        <h4 class="text-sm font-bold text-emerald-900">Sincronização Assíncrona Concluída</h4>
+                        <p class="text-xs text-emerald-700">O painel de faturas pendentes foi carregado com sucesso via requisição AJAX.</p>
+                    </div>
+                </div>
+                <span class="text-xs bg-emerald-200 text-emerald-800 px-2.5 py-1 rounded-full font-semibold">Status: Pronto</span>
+            </div>
+
+            <!-- Tabela de Dados Completa (20 Registros) -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-200">
+                    <h3 class="text-xl font-bold text-slate-800">Faturas e Despesas Submetidas (Total: 20 Registros)</h3>
+                    <p class="text-sm text-slate-500">Dados consolidados prontos para extração via Playwright e análise do FinBot.</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse" id="tabela-despesas">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Colaborador</th>
+                                <th class="py-3 px-4">CPF</th>
+                                <th class="py-3 px-4">Descrição da Despesa</th>
+                                <th class="py-3 px-4">Valor</th>
+                                <th class="py-3 px-4">Moeda</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-center">Ações de Documento</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 text-sm text-slate-700">
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Ana Paula Silva</td>
+                                <td class="py-3 px-4 text-slate-500">104.332.181-00</td>
+                                <td class="py-3 px-4">Passagem aérea São Paulo - Recife</td>
+                                <td class="py-3 px-4 font-semibold">1.250,90</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-medium">reprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Ana Paula Silva')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Carlos Eduardo Santos</td>
+                                <td class="py-3 px-4 text-slate-500">001.338.908-48</td>
+                                <td class="py-3 px-4">Almoço com cliente corporativo</td>
+                                <td class="py-3 px-4 font-semibold">185,50</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Carlos Eduardo Santos')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Mariana Oliveira</td>
+                                <td class="py-3 px-4 text-slate-500">863.794.026-91</td>
+                                <td class="py-3 px-4">Hospedagem em hotel (2 diárias)</td>
+                                <td class="py-3 px-4 font-semibold">640,00</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Mariana Oliveira')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">João Pedro Costa</td>
+                                <td class="py-3 px-4 text-slate-500">235.116.155-69</td>
+                                <td class="py-3 px-4">Transporte via aplicativo para reunião</td>
+                                <td class="py-3 px-4 font-semibold">45,80</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-medium">reprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('João Pedro Costa')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Fernanda Almeida</td>
+                                <td class="py-3 px-4 text-slate-500">078.161.849-56</td>
+                                <td class="py-3 px-4">Compra de material de escritório</td>
+                                <td class="py-3 px-4 font-semibold">112,30</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Fernanda Almeida')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Ricardo Pereira</td>
+                                <td class="py-3 px-4 text-slate-500">593.103.413-78</td>
+                                <td class="py-3 px-4">Assinatura mensal de software de gestão</td>
+                                <td class="py-3 px-4 font-semibold">299,00</td>
+                                <td class="py-3 px-4"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">USD (US$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Ricardo Pereira')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Juliana Souza</td>
+                                <td class="py-3 px-4 text-slate-500">647.525.534-30</td>
+                                <td class="py-3 px-4">Abastecimento de veículo da frota</td>
+                                <td class="py-3 px-4 font-semibold">210,45</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Juliana Souza')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Lucas Rodrigues</td>
+                                <td class="py-3 px-4 text-slate-500">192.832.764-85</td>
+                                <td class="py-3 px-4">Inscrição em conferência de tecnologia</td>
+                                <td class="py-3 px-4 font-semibold">890,00</td>
+                                <td class="py-3 px-4"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">USD (US$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Lucas Rodrigues')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Patrícia Lima</td>
+                                <td class="py-3 px-4 text-slate-500">835.030.564-91</td>
+                                <td class="py-3 px-4">Jantar durante viagem a trabalho</td>
+                                <td class="py-3 px-4 font-semibold">98,70</td>
+                                <td class="py-3 px-4"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">EUR (€)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Patrícia Lima')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Gabriel Ferreira</td>
+                                <td class="py-3 px-4 text-slate-500">953.767.242-55</td>
+                                <td class="py-3 px-4">Envio de documentos via sedex</td>
+                                <td class="py-3 px-4 font-semibold">34,20</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Gabriel Ferreira')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Camila Martins</td>
+                                <td class="py-3 px-4 text-slate-500">884.969.653-17</td>
+                                <td class="py-3 px-4">Estacionamento em aeroporto</td>
+                                <td class="py-3 px-4 font-semibold">130,00</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Camila Martins')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Rafael Gomes</td>
+                                <td class="py-3 px-4 text-slate-500">287.101.226-13</td>
+                                <td class="py-3 px-4">Manutenção de notebook corporativo</td>
+                                <td class="py-3 px-4 font-semibold">450,00</td>
+                                <td class="py-3 px-4"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">USD (US$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-medium">reprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Rafael Gomes')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Beatriz Barbosa</td>
+                                <td class="py-3 px-4 text-slate-500">669.784.801-42</td>
+                                <td class="py-3 px-4">Coffee break para treinamento interno</td>
+                                <td class="py-3 px-4 font-semibold">320,00</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-medium">reprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Beatriz Barbosa')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Thiago Ribeiro</td>
+                                <td class="py-3 px-4 text-slate-500">845.146.270-70</td>
+                                <td class="py-3 px-4">Compra de periféricos (mouse e teclado)</td>
+                                <td class="py-3 px-4 font-semibold">275,90</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Thiago Ribeiro')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Larissa Carvalho</td>
+                                <td class="py-3 px-4 text-slate-500">482.814.893-08</td>
+                                <td class="py-3 px-4">Pedágio em viagem interestadual</td>
+                                <td class="py-3 px-4 font-semibold">62,40</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Larissa Carvalho')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Bruno Mendes</td>
+                                <td class="py-3 px-4 text-slate-500">288.095.701-03</td>
+                                <td class="py-3 px-4">Serviço de tradução juramentada</td>
+                                <td class="py-3 px-4 font-semibold">510,00</td>
+                                <td class="py-3 px-4"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">EUR (€)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Bruno Mendes')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Amanda Rocha</td>
+                                <td class="py-3 px-4 text-slate-500">430.391.171-22</td>
+                                <td class="py-3 px-4">Aluguel de sala para workshop</td>
+                                <td class="py-3 px-4 font-semibold">750,00</td>
+                                <td class="py-3 px-4"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">USD (US$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-medium">analise</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Amanda Rocha')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Diego Alves</td>
+                                <td class="py-3 px-4 text-slate-500">822.782.489-79</td>
+                                <td class="py-3 px-4">Recarga de celular corporativo</td>
+                                <td class="py-3 px-4 font-semibold">50,00</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Diego Alves')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Letícia Cardoso</td>
+                                <td class="py-3 px-4 text-slate-500">383.465.787-50</td>
+                                <td class="py-3 px-4">Compra de livros técnicos</td>
+                                <td class="py-3 px-4 font-semibold">165,80</td>
+                                <td class="py-3 px-4"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">EUR (€)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Letícia Cardoso')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium">Felipe Nascimento</td>
+                                <td class="py-3 px-4 text-slate-500">315.098.393-21</td>
+                                <td class="py-3 px-4">Taxa de emissão de certificado digital</td>
+                                <td class="py-3 px-4 font-semibold">195,00</td>
+                                <td class="py-3 px-4"><span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">BRL (R$)</span></td>
+                                <td class="py-3 px-4"><span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">aprovado</span></td>
+                                <td class="py-3 px-4 text-center"><button onclick="baixarItemPDF('Felipe Nascimento')" class="text-indigo-600 hover:underline text-xs font-medium">Baixar Comprovante</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL HTML CUSTOMIZADO (Slide 5.2 - Modais HTML Personalizados) -->
+    <div id="modal-customizado" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Confirmação de Auditoria</h3>
+            <p class="text-sm text-slate-600 mb-4">Deseja realmente processar e validar o lote atual de faturas do FinBot?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="btn-fechar-modal" onclick="fecharModalCustomizado()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-sm font-medium px-4 py-2 rounded-lg transition">
+                    Fechar
+                </button>
+                <button id="btn-confirmar-modal" onclick="fecharModalCustomizado()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts de Interação (Testes do Slide 5) -->
+    <script>
+        function realizarLogin(event) {
+            event.preventDefault();
+            const usuario = document.getElementById('usuario').value;
+            
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+            document.getElementById('user-display').innerText = `Logado como: ${usuario}`;
+
+            // Simulando elemento assíncrono (AJAX/Fetch) aparecendo após 3 segundos (para o Slide 5.3)
+            setTimeout(() => {
+                const alertaAssincrono = document.getElementById('alerta-sucesso-reembolso');
+                if (alertaAssincrono) {
+                    alertaAssincrono.classList.remove('hidden');
+                }
+            }, 3000);
+        }
+
+        function realizarLogout() {
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            document.getElementById('alerta-sucesso-reembolso').classList.add('hidden');
+        }
+
+        // Funções para Alertas Nativos e Modais (Slide 5.2)
+        function dispararAlertaNativo() {
+            alert("⚠️ Atenção: Deseja realmente salvar as alterações na auditoria de faturas?");
+        }
+
+        function abrirModalCustomizado() {
+            document.getElementById('modal-customizado').classList.remove('hidden');
+        }
+
+        function fecharModalCustomizado() {
+            document.getElementById('modal-customizado').classList.add('hidden');
+        }
+
+        function baixarCSV() {
+            const linhas = [
+                ["Colaborador", "CPF", "Descricao", "Valor", "Moeda", "Status"],
+                ["Ana Paula Silva", "104.332.181-00", "Passagem aérea São Paulo - Recife", "1250.90", "BRL", "reprovado"],
+                ["Carlos Eduardo Santos", "001.338.908-48", "Almoço com cliente corporativo", "185.50", "BRL", "aprovado"],
+                ["Mariana Oliveira", "863.794.026-91", "Hospedagem em hotel (2 diárias)", "640.00", "BRL", "aprovado"],
+                ["João Pedro Costa", "235.116.155-69", "Transporte via aplicativo para reunião", "45.80", "BRL", "reprovado"],
+                ["Fernanda Almeida", "078.161.849-56", "Compra de material de escritório", "112.30", "BRL", "analise"],
+                ["Ricardo Pereira", "593.103.413-78", "Assinatura mensal de software de gestão", "299.00", "USD", "analise"],
+                ["Juliana Souza", "647.525.534-30", "Abastecimento de veículo da frota", "210.45", "BRL", "analise"],
+                ["Lucas Rodrigues", "192.832.764-85", "Inscrição em conferência de tecnologia", "890.00", "USD", "analise"],
+                ["Patrícia Lima", "835.030.564-91", "Jantar durante viagem a trabalho", "98.70", "EUR", "aprovado"],
+                ["Gabriel Ferreira", "953.767.242-55", "Envio de documentos via sedex", "34.20", "BRL", "aprovado"],
+                ["Camila Martins", "884.969.653-17", "Estacionamento em aeroporto", "130.00", "BRL", "analise"],
+                ["Rafael Gomes", "287.101.226-13", "Manutenção de notebook corporativo", "450.00", "USD", "reprovado"],
+                ["Beatriz Barbosa", "669.784.801-42", "Coffee break para treinamento interno", "320.00", "BRL", "reprovado"],
+                ["Thiago Ribeiro", "845.146.270-70", "Compra de periféricos (mouse e teclado)", "275.90", "BRL", "analise"],
+                ["Larissa Carvalho", "482.814.893-08", "Pedágio em viagem interestadual", "62.40", "BRL", "aprovado"],
+                ["Bruno Mendes", "288.095.701-03", "Serviço de tradução juramentada", "510.00", "EUR", "analise"],
+                ["Amanda Rocha", "430.391.171-22", "Aluguel de sala para workshop", "750.00", "USD", "analise"],
+                ["Diego Alves", "822.782.489-79", "Recarga de celular corporativo", "50.00", "BRL", "aprovado"],
+                ["Letícia Cardoso", "383.465.787-50", "Compra de livros técnicos", "165.80", "EUR", "aprovado"],
+                ["Felipe Nascimento", "315.098.393-21", "Taxa de emissão de certificado digital", "195.00", "BRL", "aprovado"]
+            ];
+
+            let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(",")).join("\n");
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "faturas_extrator_finbot_completo.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function gerarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFillColor(79, 70, 229);
+            doc.rect(0, 0, 210, 25, "F");
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text("FinBot - Relatório Geral de 20 Registros", 14, 16);
+
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(11);
+            doc.text("Data de Emissão: " + new Date().toLocaleDateString(), 14, 35);
+            doc.text("Status: Extração e Auditoria Web Concluídas", 14, 42);
+
+            doc.line(14, 48, 196, 48);
+
+            let y = 58;
+            doc.setFont(undefined, 'bold');
+            doc.text("Amostra de Lançamentos Processados:", 14, y);
+            
+            doc.setFont(undefined, 'normal');
+            y += 10;
+            
+            const amostra = [
+                "- Ana Paula Silva | BRL 1.250,90 | Reprovado",
+                "- Carlos Eduardo Santos | BRL 185,50 | Aprovado",
+                "- Mariana Oliveira | BRL 640,00 | Aprovado",
+                "- Ricardo Pereira | USD 299,00 | Em Análise",
+                "- Patrícia Lima | EUR 98,70 | Aprovado",
+                "... (Total de 20 registros exportados no CSV)"
+            ];
+
+            amostra.forEach(item => {
+                doc.text(item, 14, y);
+                y += 8;
+            });
+
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Documento gerado automaticamente pelo portal de testes do FinBot.", 14, 280);
+
+            doc.save("relatorio_geral_finbot.pdf");
+        }
+
+        function baixarItemPDF(nomeColaborador) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(14);
+            doc.text("Comprovante Individual de Despesa - FinBot", 14, 20);
+            doc.setFontSize(11);
+            doc.text(`Colaborador(a): ${nomeColaborador}`, 14, 35);
+            doc.text(`Status: Processado e validado pelo sistema`, 14, 45);
+            doc.text(`Data do arquivo: ${new Date().toLocaleDateString()}`, 14, 55);
+            
+            doc.save(`comprovante_${nomeColaborador.toLowerCase().replace(/ /g, '_')}.pdf`);
+        }
+    </script>
+</body>
+</html>
